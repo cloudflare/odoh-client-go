@@ -52,6 +52,8 @@ github.com/cloudflare/circl v1.0.0 h1:64b6pyfCFbYm623ncIkYGNZaOcmIbyd+CjyMi2L9vd
 github.com/cloudflare/circl v1.0.0/go.mod h1:MhjB3NEEhJbTOdLLq964NIUisXDxaE1WkQPUxtgZXiY=
 github.com/cloudflare/odoh-go v0.1.2 h1:O7T1uderVLam3rIZ60KsnPJ+qNVShcaI1/1EphFYxrI=
 github.com/cloudflare/odoh-go v0.1.2/go.mod h1:qITV1UcYtzF4kG21ikWoAXEr5d2XxRxm7/jAyA93X+k=
+github.com/cloudflare/odoh-go v0.1.3 h1:kI0ANqbcLfKZHZOJ6myyEMWReQTy6ZOybSBFpg2yTsM=
+github.com/cloudflare/odoh-go v0.1.3/go.mod h1:+8PrCWF56ioFtPx7VyhT8fL/IM6cJtPNh9IecQ1EIxg=
 github.com/cncf/udpa/go v0.0.0-20191209042840-269d4d468f6f/go.mod h1:M8M6+tZqaGXZJjfX53e64911xZQV5JYwmTeXPW+k8Sc=
 github.com/cpuguy83/go-md2man/v2 v2.0.0-20190314233015-f79a8a8ca69d h1:U+s90UTSYgptZMwQh2aRr3LuazLJIa+Pg3Kc1ylSYVY=
 github.com/cpuguy83/go-md2man/v2 v2.0.0-20190314233015-f79a8a8ca69d/go.mod h1:maD7wRr/U5Z6m/iR4s+kqSMx2CaBsrgA7czyZG/E6dU=
