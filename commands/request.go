@@ -152,6 +152,11 @@ func obliviousDnsRequest(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
+	if len(odohConfigs.Configs) == 0 {
+		err := errors.New("target provided no odoh configs")
+		fmt.Println(err)
+		return err
+	}
 	odohConfig := odohConfigs.Configs[0]
 
 	dnsType := dnsQueryStringToType(dnsTypeString)
