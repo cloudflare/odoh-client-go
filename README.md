@@ -4,7 +4,7 @@
 
 It currently supports the following functionalities:
 
-- [x] DoH Query: `odoh-client doh --domain www.cloudflare.com. --dnstype AAAA --target <target>` where `<target>` is the XXX, e.g., `odoh.cloudflare-dns.com`.
+- [x] DoH Query: `odoh-client doh --domain www.cloudflare.com. --dnstype AAAA --target <target>` where `<target>` is the name of the target resolver, e.g., `odoh.cloudflare-dns.com`.
 - [x] ODoH Query: `odoh-client odoh --domain www.cloudflare.com. --dnstype AAAA --target <target>`
 - [x] ODoH Query via Proxy: `odoh-client odoh --domain www.cloudflare.com. --dnstype AAAA --target <target> --proxy <proxy>` where `<proxy>` is the XXX, e.g., `odoh1.surfdomeinen.nl`.
 
