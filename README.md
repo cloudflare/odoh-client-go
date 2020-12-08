@@ -42,6 +42,6 @@ go build -o odoh-client ./cmd/...
 
 ### Note
 
-> The current implementation of the go lang client has a sub command for benchmarking various protocols and has been
+> This tool includes a sub command for benchmarking various protocols and has been
 > used for performing measurements presented in this [arxiv paper](https://arxiv.org/abs/2011.10121). There are also
 > traces of telemetry which are used for the same purpose in an effort to reproduce the results of the paper.
