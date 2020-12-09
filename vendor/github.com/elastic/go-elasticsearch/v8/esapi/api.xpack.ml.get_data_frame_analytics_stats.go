@@ -27,7 +27,7 @@ func newMLGetDataFrameAnalyticsStatsFunc(t Transport) MLGetDataFrameAnalyticsSta
 
 // MLGetDataFrameAnalyticsStats - Retrieves usage information for data frame analytics jobs.
 //
-// This API is experimental.
+// This API is beta.
 //
 // See full documentation at https://www.elastic.co/guide/en/elasticsearch/reference/current/get-dfanalytics-stats.html.
 //
@@ -41,6 +41,7 @@ type MLGetDataFrameAnalyticsStatsRequest struct {
 	AllowNoMatch *bool
 	From         *int
 	Size         *int
+	Verbose      *bool
 
 	Pretty     bool
 	Human      bool
@@ -89,6 +90,10 @@ func (r MLGetDataFrameAnalyticsStatsRequest) Do(ctx context.Context, transport T
 
 	if r.Size != nil {
 		params["size"] = strconv.FormatInt(int64(*r.Size), 10)
+	}
+
+	if r.Verbose != nil {
+		params["verbose"] = strconv.FormatBool(*r.Verbose)
 	}
 
 	if r.Pretty {
@@ -187,6 +192,14 @@ func (f MLGetDataFrameAnalyticsStats) WithFrom(v int) func(*MLGetDataFrameAnalyt
 func (f MLGetDataFrameAnalyticsStats) WithSize(v int) func(*MLGetDataFrameAnalyticsStatsRequest) {
 	return func(r *MLGetDataFrameAnalyticsStatsRequest) {
 		r.Size = &v
+	}
+}
+
+// WithVerbose - whether the stats response should be verbose.
+//
+func (f MLGetDataFrameAnalyticsStats) WithVerbose(v bool) func(*MLGetDataFrameAnalyticsStatsRequest) {
+	return func(r *MLGetDataFrameAnalyticsStatsRequest) {
+		r.Verbose = &v
 	}
 }
 
