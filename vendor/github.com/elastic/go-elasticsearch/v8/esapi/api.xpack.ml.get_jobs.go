@@ -36,7 +36,9 @@ type MLGetJobs func(o ...func(*MLGetJobsRequest)) (*Response, error)
 type MLGetJobsRequest struct {
 	JobID string
 
-	AllowNoJobs *bool
+	AllowNoJobs      *bool
+	AllowNoMatch     *bool
+	ExcludeGenerated *bool
 
 	Pretty     bool
 	Human      bool
@@ -73,6 +75,14 @@ func (r MLGetJobsRequest) Do(ctx context.Context, transport Transport) (*Respons
 
 	if r.AllowNoJobs != nil {
 		params["allow_no_jobs"] = strconv.FormatBool(*r.AllowNoJobs)
+	}
+
+	if r.AllowNoMatch != nil {
+		params["allow_no_match"] = strconv.FormatBool(*r.AllowNoMatch)
+	}
+
+	if r.ExcludeGenerated != nil {
+		params["exclude_generated"] = strconv.FormatBool(*r.ExcludeGenerated)
 	}
 
 	if r.Pretty {
@@ -155,6 +165,22 @@ func (f MLGetJobs) WithJobID(v string) func(*MLGetJobsRequest) {
 func (f MLGetJobs) WithAllowNoJobs(v bool) func(*MLGetJobsRequest) {
 	return func(r *MLGetJobsRequest) {
 		r.AllowNoJobs = &v
+	}
+}
+
+// WithAllowNoMatch - whether to ignore if a wildcard expression matches no jobs. (this includes `_all` string or when no jobs have been specified).
+//
+func (f MLGetJobs) WithAllowNoMatch(v bool) func(*MLGetJobsRequest) {
+	return func(r *MLGetJobsRequest) {
+		r.AllowNoMatch = &v
+	}
+}
+
+// WithExcludeGenerated - omits fields that are illegal to set on job put.
+//
+func (f MLGetJobs) WithExcludeGenerated(v bool) func(*MLGetJobsRequest) {
+	return func(r *MLGetJobsRequest) {
+		r.ExcludeGenerated = &v
 	}
 }
 

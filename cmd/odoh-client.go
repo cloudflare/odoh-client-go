@@ -2,10 +2,11 @@ package main
 
 import (
 	"fmt"
-	"github.com/chris-wood/odoh-client/commands"
-	"github.com/urfave/cli"
 	"os"
 	"time"
+
+	"github.com/cloudflare/odoh-client-go/commands"
+	"github.com/urfave/cli"
 )
 
 var (
