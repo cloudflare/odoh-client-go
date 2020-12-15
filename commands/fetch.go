@@ -2,13 +2,14 @@ package commands
 
 import (
 	"errors"
-	"strings"
 	"fmt"
+	"io/ioutil"
+	"net/http"
+	"strings"
+
 	odoh "github.com/cloudflare/odoh-go"
 	"github.com/miekg/dns"
 	"github.com/urfave/cli"
-	"io/ioutil"
-	"net/http"
 )
 
 func fetchTargetConfigsFromWellKnown(targetName string) (odoh.ObliviousDoHConfigs, error) {
@@ -95,7 +96,8 @@ func getTargetConfigs(c *cli.Context) error {
 		fmt.Println("ObliviousDoHConfigs:")
 		for i, config := range odohConfigs.Configs {
 			configContents := config.Contents
-			fmt.Printf("  Config %d: Version(0x%04x), KEM(0x%04x), KDF(0x%04x), AEAD(0x%04x) KeyID(%x)\n", (i + 1), config.Version, configContents.KemID, configContents.KdfID, configContents.AeadID, configContents.KeyID())
+			KemID, KdfID, AeadID := configContents.Suite.Params()
+			fmt.Printf("  Config %d: Version(0x%04x), KEM(0x%04x), KDF(0x%04x), AEAD(0x%04x) KeyID(%x)\n", (i + 1), config.Version, KemID, KdfID, AeadID, configContents.KeyID())
 		}
 	} else {
 		fmt.Printf("%x", odohConfigs.Marshal())

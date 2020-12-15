@@ -3,12 +3,14 @@ package commands
 import (
 	"crypto/rand"
 	"encoding/pem"
-	hpke "github.com/cisco/go-hpke"
-	odoh "github.com/cloudflare/odoh-go"
-	"github.com/urfave/cli"
+	"errors"
 	"log"
 	"os"
 	"strconv"
+
+	"github.com/cloudflare/circl/hpke"
+	odoh "github.com/cloudflare/odoh-go"
+	"github.com/urfave/cli"
 )
 
 func createConfigurations(c *cli.Context) error {
@@ -25,19 +27,30 @@ func createConfigurations(c *cli.Context) error {
 		return err
 	}
 
-	suite, err := hpke.AssembleCipherSuite(hpke.KEMID(kemID), hpke.KDFID(kdfID), hpke.AEADID(aeadID))
-	if err != nil {
-		return err
+	kem := hpke.KEM(kemID)
+	if !(kem.IsValid()) {
+		return errors.New("invalid kemid")
+	}
+	kdf := hpke.KDF(kdfID)
+	if !(kdf.IsValid()) {
+		return errors.New("invalid kdfid")
+	}
+	aead := hpke.AEAD(aeadID)
+	if !(aead.IsValid()) {
+		return errors.New("invalid aeadid")
 	}
 
-	ikm := make([]byte, suite.KEM.PrivateKeySize())
+	suite := hpke.NewSuite(kem, kdf, aead)
+	scheme := kem.Scheme()
+	ikm := make([]byte, scheme.SeedSize())
 	rand.Reader.Read(ikm)
-	privateKey, publicKey, err := suite.KEM.DeriveKeyPair(ikm)
+	publicKey, privateKey := scheme.DeriveKeyPair(ikm)
+	publicKeyBytes, err := publicKey.MarshalBinary()
 	if err != nil {
 		return err
 	}
 
-	configContents, err := odoh.CreateObliviousDoHConfigContents(hpke.KEMID(kemID), hpke.KDFID(kdfID), hpke.AEADID(aeadID), suite.KEM.Serialize(publicKey))
+	configContents, err := odoh.CreateObliviousDoHConfigContents(suite, publicKeyBytes)
 	if err != nil {
 		return err
 	}
@@ -52,9 +65,13 @@ func createConfigurations(c *cli.Context) error {
 		log.Fatal(err)
 	}
 
+	privateKeyBytes, err := privateKey.MarshalBinary()
+	if err != nil {
+		return err
+	}
 	privateConfigsBlock := &pem.Block{
 		Type:  "ODOH PRIVATE KEY",
-		Bytes: suite.KEM.SerializePrivate(privateKey),
+		Bytes: privateKeyBytes,
 	}
 	if err := pem.Encode(os.Stdout, privateConfigsBlock); err != nil {
 		log.Fatal(err)
