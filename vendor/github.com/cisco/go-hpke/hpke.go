@@ -8,12 +8,12 @@ import (
 	"io"
 	"log"
 
-	"github.com/cisco/go-tls-syntax"
+	syntax "github.com/cisco/go-tls-syntax"
 )
 
 const (
 	debug    = true
-	rfcLabel = "HPKE-06"
+	rfcLabel = "HPKE-07"
 )
 
 type KEMPrivateKey interface {
@@ -25,15 +25,15 @@ type KEMPublicKey interface{}
 type KEMScheme interface {
 	ID() KEMID
 	DeriveKeyPair(ikm []byte) (KEMPrivateKey, KEMPublicKey, error)
-	Serialize(pk KEMPublicKey) []byte
-	Deserialize(enc []byte) (KEMPublicKey, error)
+	SerializePublicKey(pkX KEMPublicKey) []byte
+	DeserializePublicKey(pkXm []byte) (KEMPublicKey, error)
 	Encap(rand io.Reader, pkR KEMPublicKey) ([]byte, []byte, error)
 	Decap(enc []byte, skR KEMPrivateKey) ([]byte, error)
 	PublicKeySize() int
 	PrivateKeySize() int
 
-	SerializePrivate(sk KEMPrivateKey) []byte
-	DeserializePrivate(enc []byte) (KEMPrivateKey, error)
+	SerializePrivateKey(skX KEMPrivateKey) []byte
+	DeserializePrivateKey(skXm []byte) (KEMPrivateKey, error)
 
 	setEphemeralKeyPair(sk KEMPrivateKey)
 }
@@ -216,13 +216,19 @@ type context struct {
 }
 
 func newContext(role contextRole, suite CipherSuite, setupParams setupParameters, contextParams contextParameters) (context, error) {
-	key := contextParams.aeadKey()
-	baseNonce := contextParams.aeadBaseNonce()
 	exporterSecret := contextParams.exporterSecret()
 
-	aead, err := suite.AEAD.New(key)
-	if err != nil {
-		return context{}, err
+	// Derive encryption and decryption secrets only if needed for the given ciphersuite
+	var err error
+	var key, baseNonce []byte
+	var aead cipher.AEAD
+	if suite.AEAD.ID() != AEAD_EXPORT_ONLY {
+		key = contextParams.aeadKey()
+		baseNonce = contextParams.aeadBaseNonce()
+		aead, err = suite.AEAD.New(key)
+		if err != nil {
+			return context{}, err
+		}
 	}
 
 	ctx := context{
@@ -259,15 +265,17 @@ func unmarshalContext(role contextRole, opaque []byte) (context, error) {
 		return context{}, err
 	}
 
-	// Construct AEAD and validate the key length.
-	ctx.aead, err = ctx.suite.AEAD.New(ctx.Key)
-	if err != nil {
-		return context{}, err
-	}
+	// Construct AEAD and validate the key length, if applcable.
+	if ctx.AEADID != AEAD_EXPORT_ONLY {
+		ctx.aead, err = ctx.suite.AEAD.New(ctx.Key)
+		if err != nil {
+			return context{}, err
+		}
 
-	// Validate the nonce length.
-	if len(ctx.BaseNonce) != ctx.aead.NonceSize() {
-		return context{}, fmt.Errorf("base nonce length: got %d; want %d", len(ctx.BaseNonce), ctx.aead.NonceSize())
+		// Validate the nonce length.
+		if len(ctx.BaseNonce) != ctx.aead.NonceSize() {
+			return context{}, fmt.Errorf("base nonce length: got %d; want %d", len(ctx.BaseNonce), ctx.aead.NonceSize())
+		}
 	}
 
 	// Validate the exporter secret length.
@@ -308,48 +316,48 @@ func (ctx *context) Marshal() ([]byte, error) {
 	return syntax.Marshal(ctx)
 }
 
-type EncryptContext struct {
+type SenderContext struct {
 	context
 }
 
-func newEncryptContext(suite CipherSuite, setupParams setupParameters, contextParams contextParameters) (*EncryptContext, error) {
+func newSenderContext(suite CipherSuite, setupParams setupParameters, contextParams contextParameters) (*SenderContext, error) {
 	ctx, err := newContext(contextRoleSender, suite, setupParams, contextParams)
 	if err != nil {
 		return nil, err
 	}
 
-	return &EncryptContext{ctx}, nil
+	return &SenderContext{ctx}, nil
 }
 
-func (ctx *EncryptContext) Seal(aad, pt []byte) []byte {
+func (ctx *SenderContext) Seal(aad, pt []byte) []byte {
 	ct := ctx.aead.Seal(nil, ctx.computeNonce(), pt, aad)
 	ctx.incrementSeq()
 	return ct
 }
 
-func UnmarshalEncryptContext(opaque []byte) (*EncryptContext, error) {
+func UnmarshalSenderContext(opaque []byte) (*SenderContext, error) {
 	ctx, err := unmarshalContext(contextRoleSender, opaque)
 	if err != nil {
 		return nil, err
 	}
 
-	return &EncryptContext{ctx}, nil
+	return &SenderContext{ctx}, nil
 }
 
-type DecryptContext struct {
+type ReceiverContext struct {
 	context
 }
 
-func newDecryptContext(suite CipherSuite, setupParams setupParameters, contextParams contextParameters) (*DecryptContext, error) {
+func newReceiverContext(suite CipherSuite, setupParams setupParameters, contextParams contextParameters) (*ReceiverContext, error) {
 	ctx, err := newContext(contextRoleReceiver, suite, setupParams, contextParams)
 	if err != nil {
 		return nil, err
 	}
 
-	return &DecryptContext{ctx}, nil
+	return &ReceiverContext{ctx}, nil
 }
 
-func (ctx *DecryptContext) Open(aad, ct []byte) ([]byte, error) {
+func (ctx *ReceiverContext) Open(aad, ct []byte) ([]byte, error) {
 	pt, err := ctx.aead.Open(nil, ctx.computeNonce(), ct, aad)
 	if err != nil {
 		return nil, err
@@ -359,19 +367,19 @@ func (ctx *DecryptContext) Open(aad, ct []byte) ([]byte, error) {
 	return pt, nil
 }
 
-func UnmarshalDecryptContext(opaque []byte) (*DecryptContext, error) {
+func UnmarshalReceiverContext(opaque []byte) (*ReceiverContext, error) {
 	ctx, err := unmarshalContext(contextRoleReceiver, opaque)
 	if err != nil {
 		return nil, err
 	}
 
-	return &DecryptContext{ctx}, nil
+	return &ReceiverContext{ctx}, nil
 }
 
 ///////
 // Base
 
-func SetupBaseS(suite CipherSuite, rand io.Reader, pkR KEMPublicKey, info []byte) ([]byte, *EncryptContext, error) {
+func SetupBaseS(suite CipherSuite, rand io.Reader, pkR KEMPublicKey, info []byte) ([]byte, *SenderContext, error) {
 	// sharedSecret, enc = Encap(pkR)
 	sharedSecret, enc, err := suite.KEM.Encap(rand, pkR)
 	if err != nil {
@@ -388,11 +396,11 @@ func SetupBaseS(suite CipherSuite, rand io.Reader, pkR KEMPublicKey, info []byte
 		return nil, nil, err
 	}
 
-	ctx, err := newEncryptContext(suite, setupParams, params)
+	ctx, err := newSenderContext(suite, setupParams, params)
 	return enc, ctx, err
 }
 
-func SetupBaseR(suite CipherSuite, skR KEMPrivateKey, enc, info []byte) (*DecryptContext, error) {
+func SetupBaseR(suite CipherSuite, skR KEMPrivateKey, enc, info []byte) (*ReceiverContext, error) {
 	// sharedSecret = Decap(enc, skR)
 	sharedSecret, err := suite.KEM.Decap(enc, skR)
 	if err != nil {
@@ -409,13 +417,13 @@ func SetupBaseR(suite CipherSuite, skR KEMPrivateKey, enc, info []byte) (*Decryp
 		return nil, err
 	}
 
-	return newDecryptContext(suite, setupParams, params)
+	return newReceiverContext(suite, setupParams, params)
 }
 
 //////
 // PSK
 
-func SetupPSKS(suite CipherSuite, rand io.Reader, pkR KEMPublicKey, psk, pskID, info []byte) ([]byte, *EncryptContext, error) {
+func SetupPSKS(suite CipherSuite, rand io.Reader, pkR KEMPublicKey, psk, pskID, info []byte) ([]byte, *SenderContext, error) {
 	// sharedSecret, enc = Encap(pkR)
 	sharedSecret, enc, err := suite.KEM.Encap(rand, pkR)
 	if err != nil {
@@ -432,11 +440,11 @@ func SetupPSKS(suite CipherSuite, rand io.Reader, pkR KEMPublicKey, psk, pskID, 
 		return nil, nil, err
 	}
 
-	ctx, err := newEncryptContext(suite, setupParams, params)
+	ctx, err := newSenderContext(suite, setupParams, params)
 	return enc, ctx, err
 }
 
-func SetupPSKR(suite CipherSuite, skR KEMPrivateKey, enc, psk, pskID, info []byte) (*DecryptContext, error) {
+func SetupPSKR(suite CipherSuite, skR KEMPrivateKey, enc, psk, pskID, info []byte) (*ReceiverContext, error) {
 	// sharedSecret = Decap(enc, skR)
 	sharedSecret, err := suite.KEM.Decap(enc, skR)
 	if err != nil {
@@ -453,13 +461,13 @@ func SetupPSKR(suite CipherSuite, skR KEMPrivateKey, enc, psk, pskID, info []byt
 		return nil, err
 	}
 
-	return newDecryptContext(suite, setupParams, params)
+	return newReceiverContext(suite, setupParams, params)
 }
 
 ///////
 // Auth
 
-func SetupAuthS(suite CipherSuite, rand io.Reader, pkR KEMPublicKey, skS KEMPrivateKey, info []byte) ([]byte, *EncryptContext, error) {
+func SetupAuthS(suite CipherSuite, rand io.Reader, pkR KEMPublicKey, skS KEMPrivateKey, info []byte) ([]byte, *SenderContext, error) {
 	// sharedSecret, enc = AuthEncap(pkR, skS)
 	auth := suite.KEM.(AuthKEMScheme)
 	sharedSecret, enc, err := auth.AuthEncap(rand, pkR, skS)
@@ -477,11 +485,11 @@ func SetupAuthS(suite CipherSuite, rand io.Reader, pkR KEMPublicKey, skS KEMPriv
 		return nil, nil, err
 	}
 
-	ctx, err := newEncryptContext(suite, setupParams, params)
+	ctx, err := newSenderContext(suite, setupParams, params)
 	return enc, ctx, err
 }
 
-func SetupAuthR(suite CipherSuite, skR KEMPrivateKey, pkS KEMPublicKey, enc, info []byte) (*DecryptContext, error) {
+func SetupAuthR(suite CipherSuite, skR KEMPrivateKey, pkS KEMPublicKey, enc, info []byte) (*ReceiverContext, error) {
 	// sharedSecret = AuthDecap(enc, skR, pkS)
 	auth := suite.KEM.(AuthKEMScheme)
 	sharedSecret, err := auth.AuthDecap(enc, skR, pkS)
@@ -499,13 +507,13 @@ func SetupAuthR(suite CipherSuite, skR KEMPrivateKey, pkS KEMPublicKey, enc, inf
 		return nil, err
 	}
 
-	return newDecryptContext(suite, setupParams, params)
+	return newReceiverContext(suite, setupParams, params)
 }
 
 /////////////
 // PSK + Auth
 
-func SetupAuthPSKS(suite CipherSuite, rand io.Reader, pkR KEMPublicKey, skS KEMPrivateKey, psk, pskID, info []byte) ([]byte, *EncryptContext, error) {
+func SetupAuthPSKS(suite CipherSuite, rand io.Reader, pkR KEMPublicKey, skS KEMPrivateKey, psk, pskID, info []byte) ([]byte, *SenderContext, error) {
 	// sharedSecret, enc = AuthEncap(pkR, skS)
 	auth := suite.KEM.(AuthKEMScheme)
 	sharedSecret, enc, err := auth.AuthEncap(rand, pkR, skS)
@@ -523,11 +531,11 @@ func SetupAuthPSKS(suite CipherSuite, rand io.Reader, pkR KEMPublicKey, skS KEMP
 		return nil, nil, err
 	}
 
-	ctx, err := newEncryptContext(suite, setupParams, params)
+	ctx, err := newSenderContext(suite, setupParams, params)
 	return enc, ctx, err
 }
 
-func SetupAuthPSKR(suite CipherSuite, skR KEMPrivateKey, pkS KEMPublicKey, enc, psk, pskID, info []byte) (*DecryptContext, error) {
+func SetupAuthPSKR(suite CipherSuite, skR KEMPrivateKey, pkS KEMPublicKey, enc, psk, pskID, info []byte) (*ReceiverContext, error) {
 	// sharedSecret = AuthDecap(enc, skR, pkS)
 	auth := suite.KEM.(AuthKEMScheme)
 	sharedSecret, err := auth.AuthDecap(enc, skR, pkS)
@@ -545,5 +553,5 @@ func SetupAuthPSKR(suite CipherSuite, skR KEMPrivateKey, pkS KEMPublicKey, enc, 
 		return nil, err
 	}
 
-	return newDecryptContext(suite, setupParams, params)
+	return newReceiverContext(suite, setupParams, params)
 }
