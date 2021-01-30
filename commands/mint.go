@@ -3,12 +3,13 @@ package commands
 import (
 	"crypto/rand"
 	"encoding/pem"
-	hpke "github.com/cisco/go-hpke"
-	odoh "github.com/cloudflare/odoh-go"
-	"github.com/urfave/cli"
 	"log"
 	"os"
 	"strconv"
+
+	hpke "github.com/cisco/go-hpke"
+	odoh "github.com/cloudflare/odoh-go"
+	"github.com/urfave/cli"
 )
 
 func createConfigurations(c *cli.Context) error {
@@ -37,7 +38,7 @@ func createConfigurations(c *cli.Context) error {
 		return err
 	}
 
-	configContents, err := odoh.CreateObliviousDoHConfigContents(hpke.KEMID(kemID), hpke.KDFID(kdfID), hpke.AEADID(aeadID), suite.KEM.Serialize(publicKey))
+	configContents, err := odoh.CreateObliviousDoHConfigContents(hpke.KEMID(kemID), hpke.KDFID(kdfID), hpke.AEADID(aeadID), suite.KEM.SerializePublicKey(publicKey))
 	if err != nil {
 		return err
 	}
@@ -54,7 +55,7 @@ func createConfigurations(c *cli.Context) error {
 
 	privateConfigsBlock := &pem.Block{
 		Type:  "ODOH PRIVATE KEY",
-		Bytes: suite.KEM.SerializePrivate(privateKey),
+		Bytes: suite.KEM.SerializePrivateKey(privateKey),
 	}
 	if err := pem.Encode(os.Stdout, privateConfigsBlock); err != nil {
 		log.Fatal(err)

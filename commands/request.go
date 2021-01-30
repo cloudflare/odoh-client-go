@@ -6,13 +6,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	odoh "github.com/cloudflare/odoh-go"
-	"github.com/miekg/dns"
-	"github.com/urfave/cli"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
+
+	odoh "github.com/cloudflare/odoh-go"
+	"github.com/miekg/dns"
+	"github.com/urfave/cli"
 )
 
 func createPlainQueryResponse(hostname string, serializedDnsQueryString []byte) (response *dns.Msg, err error) {
@@ -153,7 +154,7 @@ func obliviousDnsRequest(c *cli.Context) error {
 		return err
 	}
 	if len(odohConfigs.Configs) == 0 {
-		err := errors.New("target provided no odoh configs")
+		err := errors.New("target provided no valid odoh configs")
 		fmt.Println(err)
 		return err
 	}

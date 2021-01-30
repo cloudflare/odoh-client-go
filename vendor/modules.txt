@@ -9,7 +9,7 @@ cloud.google.com/go/logging/apiv2
 cloud.google.com/go/logging/internal
 # git.schwanenlied.me/yawning/x448.git v0.0.0-20170617130356-01b048fb03d6
 git.schwanenlied.me/yawning/x448.git
-# github.com/cisco/go-hpke v0.0.0-20201023221920-2866d2aa0603
+# github.com/cisco/go-hpke v0.0.0-20201215202025-9cebdf8f33d4
 ## explicit
 github.com/cisco/go-hpke
 # github.com/cisco/go-tls-syntax v0.0.0-20200617162716-46b0cfb76b9b
@@ -20,7 +20,7 @@ github.com/cloudflare/circl/dh/sidh/internal/common
 github.com/cloudflare/circl/dh/sidh/internal/p503
 github.com/cloudflare/circl/dh/sidh/internal/p751
 github.com/cloudflare/circl/dh/sidh/internal/shake
-# github.com/cloudflare/odoh-go v0.1.3
+# github.com/cloudflare/odoh-go v0.1.4
 ## explicit
 github.com/cloudflare/odoh-go
 # github.com/cpuguy83/go-md2man/v2 v2.0.0-20190314233015-f79a8a8ca69d
