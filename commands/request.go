@@ -27,7 +27,7 @@ func createPlainQueryResponse(hostname string, serializedDnsQueryString []byte) 
 	queries := req.URL.Query()
 	encodedString := base64.RawURLEncoding.EncodeToString(serializedDnsQueryString)
 	queries.Add("dns", encodedString)
-	req.Header.Set("Content-Type", "application/dns-message")
+	req.Header.Set("Content-Type", DOH_CONTENT_TYPE)
 	req.URL.RawQuery = queries.Encode()
 
 	resp, err := client.Do(req)
@@ -60,7 +60,8 @@ func prepareHttpRequest(serializedBody []byte, useProxy bool, targetIP string, p
 		queries.Add("targetpath", "/dns-query")
 	}
 
-	req.Header.Set("Content-Type", "application/oblivious-dns-message")
+	req.Header.Set("Content-Type", OBLIVIOUS_DOH_CONTENT_TYPE)
+	req.Header.Set("Accept", OBLIVIOUS_DOH_CONTENT_TYPE)
 	req.URL.RawQuery = queries.Encode()
 
 	return req, err
@@ -84,8 +85,8 @@ func resolveObliviousQuery(query odoh.ObliviousDNSMessage, useProxy bool, target
 	if err != nil {
 		return odoh.ObliviousDNSMessage{}, err
 	}
-	if responseHeader != OBLIVIOUS_DOH {
-		return odoh.ObliviousDNSMessage{}, errors.New(fmt.Sprintf("Did not obtain the correct headers from %v with response %v", targetIP, string(bodyBytes)))
+	if responseHeader != OBLIVIOUS_DOH_CONTENT_TYPE {
+		return odoh.ObliviousDNSMessage{}, fmt.Errorf("Did not obtain the correct headers from %v with response %v", targetIP, string(bodyBytes))
 	}
 
 	odohQueryResponse, err := odoh.UnmarshalDNSMessage(bodyBytes)
@@ -117,7 +118,7 @@ func fetchProxiesAndTargets(hostname string, client *http.Client) (response Disc
 }
 
 func plainDnsRequest(c *cli.Context) error {
-	domainName := c.String("domain")
+	domainName := dns.Fqdn(c.String("domain"))
 	dnsTypeString := c.String("dnstype")
 	dnsTargetServer := c.String("target")
 	dnsType := dnsQueryStringToType(dnsTypeString)
@@ -139,7 +140,7 @@ func plainDnsRequest(c *cli.Context) error {
 }
 
 func obliviousDnsRequest(c *cli.Context) error {
-	domainName := c.String("domain")
+	domainName := dns.Fqdn(c.String("domain"))
 	dnsTypeString := c.String("dnstype")
 	targetName := c.String("target")
 	proxy := c.String("proxy")
