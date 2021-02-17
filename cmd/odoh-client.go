@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"time"
 
@@ -47,5 +48,7 @@ func main() {
 		CustomAppHelpTemplate:  "",
 		UseShortOptionHandling: false,
 	}
-	app.Run(os.Args)
+	if err := app.Run(os.Args); err != nil {
+		log.Fatal(err)
+	}
 }
