@@ -1,24 +1,20 @@
 package commands
 
 import (
+	"log"
+	"strings"
+
 	odoh "github.com/cloudflare/odoh-go"
 	"github.com/miekg/dns"
 )
 
 // Function for Converting CLI DNS Query Type to the uint16 Datatype
 func dnsQueryStringToType(stringType string) uint16 {
-	switch stringType {
-	case "A":
-		return dns.TypeA
-	case "AAAA":
-		return dns.TypeAAAA
-	case "CAA":
-		return dns.TypeCAA
-	case "CNAME":
-		return dns.TypeCNAME
-	default:
-		return 0
+	t, ok := dns.StringToType[strings.ToUpper(stringType)]
+	if !ok {
+		log.Fatalf("unknown query type: \"%v\"", stringType)
 	}
+	return t
 }
 
 func parseDnsResponse(data []byte) (*dns.Msg, error) {
