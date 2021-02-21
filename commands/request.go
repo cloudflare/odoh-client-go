@@ -9,7 +9,6 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
-	"net/url"
 
 	odoh "github.com/cloudflare/odoh-go"
 	"github.com/miekg/dns"
@@ -18,7 +17,7 @@ import (
 
 func createPlainQueryResponse(hostname string, serializedDnsQueryString []byte) (response *dns.Msg, err error) {
 	client := http.Client{}
-	queryUrl := fmt.Sprintf(TARGET_HTTP_MODE+"://%s/dns-query", hostname)
+	queryUrl := buildDohURL(hostname).String()
 	req, err := http.NewRequest(http.MethodGet, queryUrl, nil)
 	if err != nil {
 		log.Fatalln(err)
@@ -39,30 +38,25 @@ func createPlainQueryResponse(hostname string, serializedDnsQueryString []byte) 
 	if err != nil {
 		log.Fatal(err)
 	}
+	if resp.StatusCode < 200 || resp.StatusCode > 299 {
+		log.Fatalf("Received non-2XX status code from %v: %v", hostname, string(bodyBytes))
+	}
 	dnsBytes, err := parseDnsResponse(bodyBytes)
 
 	return dnsBytes, nil
 }
 
-func prepareHttpRequest(serializedBody []byte, useProxy bool, targetIP string, proxy string) (req *http.Request, err error) {
-	var baseurl string
-	var queries url.Values
-
-	if useProxy != true {
-		baseurl = fmt.Sprintf("%s://%s/%s", TARGET_HTTP_MODE, targetIP, "dns-query")
-		req, err = http.NewRequest(http.MethodPost, baseurl, bytes.NewBuffer(serializedBody))
-		queries = req.URL.Query()
+func prepareHttpRequest(serializedBody []byte, useProxy bool, target string, proxy string) (req *http.Request, err error) {
+	if useProxy {
+		u := buildOdohProxyURL(proxy, target)
+		req, err = http.NewRequest(http.MethodPost, u.String(), bytes.NewBuffer(serializedBody))
 	} else {
-		baseurl = fmt.Sprintf("%s://%s/%s", PROXY_HTTP_MODE, proxy, "proxy")
-		req, err = http.NewRequest(http.MethodPost, baseurl, bytes.NewBuffer(serializedBody))
-		queries = req.URL.Query()
-		queries.Add("targethost", targetIP)
-		queries.Add("targetpath", "/dns-query")
+		u := buildOdohTargetURL(target)
+		req, err = http.NewRequest(http.MethodPost, u.String(), bytes.NewBuffer(serializedBody))
 	}
 
 	req.Header.Set("Content-Type", OBLIVIOUS_DOH_CONTENT_TYPE)
 	req.Header.Set("Accept", OBLIVIOUS_DOH_CONTENT_TYPE)
-	req.URL.RawQuery = queries.Encode()
 
 	return req, err
 }
