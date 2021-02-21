@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"net/url"
 
 	odoh "github.com/cloudflare/odoh-go"
 	"github.com/miekg/dns"
@@ -47,13 +48,13 @@ func createPlainQueryResponse(hostname string, serializedDnsQueryString []byte) 
 }
 
 func prepareHttpRequest(serializedBody []byte, useProxy bool, target string, proxy string) (req *http.Request, err error) {
+	var u *url.URL
 	if useProxy {
-		u := buildOdohProxyURL(proxy, target)
-		req, err = http.NewRequest(http.MethodPost, u.String(), bytes.NewBuffer(serializedBody))
+		u = buildOdohProxyURL(proxy, target)
 	} else {
-		u := buildOdohTargetURL(target)
-		req, err = http.NewRequest(http.MethodPost, u.String(), bytes.NewBuffer(serializedBody))
+		u = buildOdohTargetURL(target)
 	}
+	req, err = http.NewRequest(http.MethodPost, u.String(), bytes.NewBuffer(serializedBody))
 
 	req.Header.Set("Content-Type", OBLIVIOUS_DOH_CONTENT_TYPE)
 	req.Header.Set("Accept", OBLIVIOUS_DOH_CONTENT_TYPE)
