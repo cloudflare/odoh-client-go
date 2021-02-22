@@ -2,6 +2,7 @@ package commands
 
 import (
 	"log"
+	"net/url"
 	"strings"
 
 	odoh "github.com/cloudflare/odoh-go"
@@ -31,4 +32,44 @@ func createOdohQuestion(dnsMessage []byte, publicKey odoh.ObliviousDoHConfigCont
 	}
 
 	return odnsMessage, queryContext, nil
+}
+
+func buildURL(s, defaultPath string) *url.URL {
+	if !strings.HasPrefix(s, "https://") && !strings.HasPrefix(s, "http://") {
+		s = "https://" + s
+	}
+	u, err := url.Parse(s)
+	if err != nil {
+		log.Fatalf("failed to parse url: %v", err)
+	}
+	if u.Path == "" {
+		u.Path = defaultPath
+	}
+	return u
+}
+
+func buildDohURL(s string) *url.URL {
+	return buildURL(s, DOH_DEFAULT_PATH)
+}
+
+func buildOdohTargetURL(s string) *url.URL {
+	return buildURL(s, ODOH_DEFAULT_PATH)
+}
+
+func buildOdohProxyURL(proxy, target string) *url.URL {
+	p := buildURL(proxy, ODOH_PROXY_DEFAULT_PATH)
+	t := buildOdohTargetURL(target)
+	qry := p.Query()
+	if qry.Get("targethost") == "" {
+		qry.Set("targethost", t.Host)
+	}
+	if qry.Get("targetpath") == "" {
+		qry.Set("targetpath", t.Path)
+	}
+	p.RawQuery = qry.Encode()
+	return p
+}
+
+func buildOdohConfigURL(s string) *url.URL {
+	return buildURL(s, ODOH_CONFIG_WELLKNOWN_PATH)
 }

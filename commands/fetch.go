@@ -2,17 +2,17 @@ package commands
 
 import (
 	"errors"
-	"strings"
 	"fmt"
+	"io/ioutil"
+	"net/http"
+
 	odoh "github.com/cloudflare/odoh-go"
 	"github.com/miekg/dns"
 	"github.com/urfave/cli"
-	"io/ioutil"
-	"net/http"
 )
 
-func fetchTargetConfigsFromWellKnown(targetName string) (odoh.ObliviousDoHConfigs, error) {
-	req, err := http.NewRequest(http.MethodGet, TARGET_HTTP_MODE+"://"+targetName+ODOH_CONFIG_WELLKNOWN_URL, nil)
+func fetchTargetConfigsFromWellKnown(url string) (odoh.ObliviousDoHConfigs, error) {
+	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return odoh.ObliviousDoHConfigs{}, err
 	}
@@ -31,10 +31,6 @@ func fetchTargetConfigsFromWellKnown(targetName string) (odoh.ObliviousDoHConfig
 }
 
 func fetchTargetConfigsFromDNS(targetName string) (odoh.ObliviousDoHConfigs, error) {
-	if !strings.HasSuffix(targetName, ".") {
-		targetName = targetName + "."
-	}
-
 	dnsQuery := new(dns.Msg)
 	dnsQuery.SetQuestion(targetName, dns.TypeHTTPS)
 	dnsQuery.RecursionDesired = true
@@ -73,13 +69,15 @@ func fetchTargetConfigsFromDNS(targetName string) (odoh.ObliviousDoHConfigs, err
 }
 
 func fetchTargetConfigs(targetName string) (odoh.ObliviousDoHConfigs, error) {
-	odohConfigs, err := fetchTargetConfigsFromDNS(targetName)
+	u := buildOdohConfigURL(targetName)
+	hostname := dns.Fqdn(u.Hostname())
+	odohConfigs, err := fetchTargetConfigsFromDNS(hostname)
 	if err == nil {
 		return odohConfigs, err
 	}
 
 	// Fall back to the well-known endpoint if we can't read from DNS
-	return fetchTargetConfigsFromWellKnown(targetName)
+	return fetchTargetConfigsFromWellKnown(u.String())
 }
 
 func getTargetConfigs(c *cli.Context) error {
