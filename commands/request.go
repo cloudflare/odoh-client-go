@@ -3,7 +3,6 @@ package commands
 import (
 	"bytes"
 	"encoding/base64"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -95,26 +94,6 @@ func resolveObliviousQuery(query odoh.ObliviousDNSMessage, useProxy bool, target
 	}
 
 	return odohQueryResponse, nil
-}
-
-func fetchProxiesAndTargets(hostname string, client *http.Client) (response DiscoveryServiceResponse, err error) {
-	req, err := http.NewRequest(http.MethodGet, TARGET_HTTP_MODE+"://"+hostname, nil)
-	if err != nil {
-		log.Fatalf("Unable to discover the proxies and targets")
-	}
-	resp, err := client.Do(req)
-	if err != nil {
-		log.Fatalf("Unable to obtain a response from the discovery service")
-	}
-	defer resp.Body.Close()
-
-	var data DiscoveryServiceResponse
-	decoder := json.NewDecoder(resp.Body)
-	err = decoder.Decode(&data)
-	if err != nil {
-		log.Fatalf("Unable to decode the obtained JSON response from the Discovery service %v\n", err)
-	}
-	return data, nil
 }
 
 func plainDnsRequest(c *cli.Context) error {

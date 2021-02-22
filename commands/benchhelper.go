@@ -4,9 +4,23 @@ import (
 	"io/ioutil"
 	"log"
 	"math/rand"
+	"os"
 	"strings"
 	"time"
 )
+
+func readDomainsFromFile(path string, limit uint64) ([]string, error) {
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		return []string{"cloudflare.com.", "example.com."}, nil
+	}
+
+	allDomains, err := readLines(path)
+	if err != nil {
+		log.Printf("Failed to read the file correctly. %v", err)
+	}
+
+	return shuffleAndSlice(allDomains, limit), nil
+}
 
 func readLines(path string) (lines []string, err error) {
 	bytesRead, _ := ioutil.ReadFile(path)
@@ -22,6 +36,7 @@ func shuffleAndSlice(records []string, slice uint64) (lines []string) {
 	rand.Shuffle(len(records), func(i, j int) { records[i], records[j] = records[j], records[i] })
 	log.Printf("Time (ms) to shuffle %v records : [%v]", len(records), time.Since(start).Milliseconds())
 	chosen_records := records[0:slice]
+
 	// Append a '.' to the end of the message for it to be a valid DNS Question about the Hostname
 	for index, record := range chosen_records {
 		chosen_records[index] = record + "."

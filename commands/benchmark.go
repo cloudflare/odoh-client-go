@@ -4,14 +4,16 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
-	odoh "github.com/cloudflare/odoh-go"
-	"github.com/miekg/dns"
-	"github.com/urfave/cli"
+	"fmt"
+	"io/ioutil"
 	"log"
-	mathrand "math/rand"
 	"net/http"
 	"os"
 	"time"
+
+	odoh "github.com/cloudflare/odoh-go"
+	"github.com/miekg/dns"
+	"github.com/urfave/cli"
 )
 
 // This runningTime structure contains the epoch timestamps for each of the operations
@@ -34,7 +36,7 @@ type runningTime struct {
 type experiment struct {
 	ExperimentID    string
 	Hostname        string
-	DnsType         uint16
+	DNSType         uint16
 	TargetPublicKey odoh.ObliviousDoHConfigContents
 	// Instrumentation
 	Proxy  string
@@ -44,33 +46,24 @@ type experiment struct {
 }
 
 type experimentResult struct {
-	Hostname        string
-	DnsType         uint16
-	TargetPublicKey odoh.ObliviousDoHConfigContents
+	Hostname        string                          `json:"Hostname"`
+	DNSType         uint16                          `json:"DNSType"`
+	TargetPublicKey odoh.ObliviousDoHConfigContents `json:"ODoHConfigContents"`
 	// Timing parameters
-	STime time.Time
-	ETime time.Time
+	STime time.Time `json:"StartTime"`
+	ETime time.Time `json:"EndTime"`
 	// Instrumentation
-	RequestID   string
-	DnsQuestion []byte
-	DnsAnswer   []byte
-	Proxy       string
-	Target      string
-	Timestamp   runningTime
+	RequestID   string      `json:"RequestID"`
+	DNSQuestion []byte      `json:"Question"`
+	DNSAnswer   []byte      `json:"Answer"`
+	Proxy       string      `json:"Proxy"`
+	Target      string      `json:"Target"`
+	Timestamp   runningTime `json:"Timestamp"`
 	// experiment status
-	Status       bool
-	IngestedFrom string
-	ProtocolType string
-	ExperimentID string
-}
-
-func (e *experimentResult) serialize() string {
-	exp := &e
-	response, err := json.Marshal(exp)
-	if err != nil {
-		log.Printf("Unable to log the information correctly.")
-	}
-	return string(response)
+	Status       bool   `json:"Status"`
+	IngestedFrom string `json:"IngestedFrom"`
+	ProtocolType string `json:"ProtocolType"`
+	ExperimentID string `json:"ExperimentID"`
 }
 
 type DiscoveryServiceResponse struct {
@@ -80,7 +73,7 @@ type DiscoveryServiceResponse struct {
 
 func (e *experiment) run(client *http.Client, channel chan experimentResult) {
 	hostname := e.Hostname
-	dnsType := e.DnsType
+	dnsType := e.DNSType
 	targetPublicKey := e.TargetPublicKey
 	proxy := e.Proxy
 	target := e.Target
@@ -124,13 +117,13 @@ func (e *experiment) run(client *http.Client, channel chan experimentResult) {
 	if err != nil {
 		exp := experimentResult{
 			Hostname:        hostname,
-			DnsType:         dnsType,
+			DNSType:         dnsType,
 			TargetPublicKey: targetPublicKey,
 			Target:          target,
 			Proxy:           proxy,
 			STime:           start,
 			ETime:           time.Now(),
-			DnsAnswer:       []byte(err.Error()),
+			DNSAnswer:       []byte(err.Error()),
 			Status:          false,
 			Timestamp:       rt,
 			IngestedFrom:    e.IngestedFrom,
@@ -148,13 +141,13 @@ func (e *experiment) run(client *http.Client, channel chan experimentResult) {
 	if err != nil || dnsAnswer == nil {
 		exp := experimentResult{
 			Hostname:        hostname,
-			DnsType:         dnsType,
+			DNSType:         dnsType,
 			TargetPublicKey: targetPublicKey,
 			Target:          target,
 			Proxy:           proxy,
 			STime:           start,
 			ETime:           time.Now(),
-			DnsAnswer:       []byte("dnsAnswer incorrectly and unable to Pack"),
+			DNSAnswer:       []byte("dnsAnswer incorrectly and unable to Pack"),
 			Status:          false,
 			Timestamp:       rt,
 			IngestedFrom:    e.IngestedFrom,
@@ -184,33 +177,32 @@ func (e *experiment) run(client *http.Client, channel chan experimentResult) {
 	log.Printf("Requested ID : [%s]", requestIDString)
 	exp := experimentResult{
 		Hostname:        hostname,
-		DnsType:         dnsType,
+		DNSType:         dnsType,
 		TargetPublicKey: targetPublicKey,
 		// Overall timing parameters
 		STime: start,
 		ETime: time.Now(),
 		// Instrumentation
 		RequestID:   requestIDString,
-		DnsQuestion: odohMessage.Marshal(),
-		DnsAnswer:   dnsAnswerBytes,
+		DNSQuestion: odohMessage.Marshal(),
+		DNSAnswer:   dnsAnswerBytes,
 		Proxy:       proxy,
 		Target:      target,
 		Timestamp:   rt,
 		// Experiment status
 		Status:       true,
 		IngestedFrom: e.IngestedFrom,
-		ProtocolType: "ODOH",
+		ProtocolType: "ODoH",
 		ExperimentID: expId,
 	}
-	log.Printf("experiment : %v", exp.serialize())
 	channel <- exp
 }
 
-func responseHandler(numberOfChannels int, responseChannel chan experimentResult) []string {
-	responses := make([]string, 0)
+func responseHandler(numberOfChannels int, responseChannel chan experimentResult) []experimentResult {
+	responses := make([]experimentResult, 0)
 	for index := 0; index < numberOfChannels; index++ {
 		answerStructure := <-responseChannel
-		answer := answerStructure.DnsAnswer
+		answer := answerStructure.DNSAnswer
 		sTime := answerStructure.STime
 		eTime := answerStructure.ETime
 		hostname := answerStructure.Hostname
@@ -219,7 +211,7 @@ func responseHandler(numberOfChannels int, responseChannel chan experimentResult
 		log.Printf("Response %v\n", index)
 		log.Printf("Size of the Response for [%v] is [%v] and [%v] to [%v] = [%v] using Proxy [%v] using Target [%v]",
 			hostname, len(answer), sTime.UnixNano(), eTime.UnixNano(), eTime.Sub(sTime).Microseconds(), proxy, target)
-		responses = append(responses, answerStructure.serialize())
+		responses = append(responses, answerStructure)
 	}
 	return responses
 }
@@ -244,75 +236,59 @@ func benchmarkClient(c *cli.Context) {
 		experimentID = "EXP_LOCAL"
 	}
 
-	outputFilePath := c.String("out")
-	f, err := os.OpenFile(outputFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	logFilePath := c.String("logout")
+	f, err := os.OpenFile(logFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		log.Fatalf("Unable to create a log file to log data into.")
 	}
 	defer f.Close()
 	log.SetOutput(f)
 
-	// The Preparation Phase of the request.
+	outputFilePath := c.String("out")
 	filepath := c.String("data")
 	filterCount := c.Uint64("pick")
 	numberOfParallelClients := c.Uint64("numclients")
 	requestPerMinute := c.Uint64("rate") // requests/minute
-	discoveryServiceHostname := c.String("discovery")
+	target := c.String("target")
+	if len(target) < 0 {
+		log.Fatal("Missing target parameter")
+	}
+	proxy := c.String("proxy")
+	if len(proxy) < 0 {
+		log.Fatal("Missing target parameter")
+	}
+	dnsTypeString := c.String("dnstype")
+	dnsMessageType := dnsQueryStringToType(dnsTypeString)
+
 	tickTrigger := getTickTriggerTiming(int(requestPerMinute))
-
-	totalResponsesNeeded := numberOfParallelClients * filterCount
-
-	allDomains, err := readLines(filepath)
-
+	hostnames, err := readDomainsFromFile(filepath, filterCount)
 	if err != nil {
 		log.Printf("Failed to read the file correctly. %v", err)
 	}
+	if len(hostnames) < int(filterCount) {
+		filterCount = uint64(len(hostnames))
+	}
+	totalResponsesNeeded := numberOfParallelClients * filterCount
 
-	hostnames := shuffleAndSlice(allDomains, filterCount)
-	log.Printf("Now operating on a total size of : [%v] hostnames", len(hostnames))
-
-	// Create a base state of the experiment
 	state := GetInstance(numberOfParallelClients)
-	telemetryState := getTelemetryInstance()
-	//telemetryResponse := telemetryState.getClusterInformation()
-	//log.Printf("Server: %s", telemetryResponse["version"].(map[string]interface{})["number"])
 
-	// Create network requests concurrently.
-	const dnsMessageType = dns.TypeA
-
-	availableServices, err := fetchProxiesAndTargets(discoveryServiceHostname, instance.client[0])
+	configs, err := fetchTargetConfigs(target)
 	if err != nil {
-		log.Fatalf("Unable to discover the services available.")
+		fmt.Println("failed configs")
+		log.Fatalf("Unable to obtain the ObliviousDoHConfigs from %v. Error %v", target, err)
+	}
+	if len(configs.Configs) == 0 {
+		log.Fatalf("Empty configs returned for the target %v", target)
 	}
 
-	// Obtain all the keys for the targets.
-	targets := availableServices.Targets
-	proxies := availableServices.Proxies
-	for _, target := range targets {
-		configs, err := fetchTargetConfigs(target)
-		if err != nil {
-			log.Fatalf("Unable to obtain the ObliviousDoHConfigs from %v. Error %v", target, err)
-		}
-		config := configs.Configs[0]
-		state.InsertKey(target, config.Contents)
-	}
+	config := configs.Configs[0]
+	state.InsertKey(target, config.Contents)
 
-	keysAvailable := state.TotalNumberOfTargets()
-	log.Printf("%v targets available to choose from.", keysAvailable)
-	log.Printf("%v proxies available to choose from.", len(proxies))
-
-	start := time.Now()
 	responseChannel := make(chan experimentResult, totalResponsesNeeded)
-
 	totalQueries := len(hostnames)
-	log.Printf("Tick Trigger : %v %v", tickTrigger, time.Duration(tickTrigger)*time.Minute)
-
 	requestPerMinuteTick := time.NewTicker(time.Duration(tickTrigger) * time.Second)
 
-	// TODO(@sudheesh): Ideally start all the clients at different durations before they enforce --rate.
-
-	for now := range requestPerMinuteTick.C {
-		log.Printf("[%v] Firing %v requests at %v\n", totalQueries, requestPerMinute, now)
+	for range requestPerMinuteTick.C {
 		startIndex := totalQueries - 1
 		endIndex := startIndex - int(requestPerMinute)
 		if endIndex < 0 {
@@ -322,44 +298,43 @@ func benchmarkClient(c *cli.Context) {
 			for clientIndex := 0; clientIndex < int(numberOfParallelClients); clientIndex++ {
 				hostname := hostnames[index]
 				clientUsed := state.client[clientIndex]
-				log.Printf("Choosing [Client %v] to make a query", index%int(numberOfParallelClients))
-				chosenTarget := targets[mathrand.Intn(keysAvailable)]
-				chosenProxy := proxies[mathrand.Intn(len(proxies))]
-				targetConfigContents, err := state.GetTargetConfigContents(chosenTarget)
+				targetConfigContents, err := state.GetTargetConfigContents(target)
 				if err != nil {
 					log.Fatalf("Unable to retrieve the PK requested")
 				}
 				e := experiment{
 					ExperimentID:    experimentID,
 					Hostname:        hostname,
-					DnsType:         dnsMessageType,
+					DNSType:         dnsMessageType,
 					TargetPublicKey: targetConfigContents,
-					Target:          chosenTarget,
-					Proxy:           chosenProxy,
+					Target:          target,
+					Proxy:           proxy,
 					IngestedFrom:    clientInstanceName,
 				}
 
-				log.Printf("Request %v%v\n", index, clientIndex)
 				go e.run(clientUsed, responseChannel)
 			}
 			totalQueries--
 		}
 		if totalQueries <= 0 {
-			log.Printf("Breaking out of the request per minute loop.")
 			requestPerMinuteTick.Stop()
 			break
 		}
 	}
-	log.Printf("Reached here and triggering the responseHandler.\n")
 	responses := responseHandler(int(totalResponsesNeeded), responseChannel)
 	close(responseChannel)
 
-	totalResponse := time.Since(start)
-	log.Printf("Time to perform [%v] workflow tasks : [%v]", len(hostnames), totalResponse.Milliseconds())
+	encResponses, err := json.Marshal(responses)
+	if err != nil {
+		log.Fatal("Failed to encode results:", err)
+	}
 
-	log.Printf("Collected [%v] Responses.", len(responses))
-	telemetryState.streamLogsToGCP(responses)
-	//telemetryState.streamLogsToELK(responses)
-
-	telemetryState.tearDown()
+	if _, err := os.Stat(outputFilePath); os.IsNotExist(err) {
+		fmt.Println(string(encResponses))
+	} else {
+		err = ioutil.WriteFile("output.json", encResponses, 0644)
+		if err != nil {
+			log.Fatal("Failed writing results to file:", err)
+		}
+	}
 }
