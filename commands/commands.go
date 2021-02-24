@@ -105,12 +105,25 @@ var Commands = []cli.Command{
 				Value: 15,
 			},
 			cli.StringFlag{
-				Name:  "out",
-				Value: "data/data-test.txt",
+				Name:  "logout",
+				Value: "log.txt",
 			},
 			cli.StringFlag{
-				Name:  "discovery",
-				Value: "odoh-discovery.crypto-team.workers.dev",
+				Name:  "out",
+				Value: "",
+			},
+			cli.StringFlag{
+				Name:  "target",
+				Value: "localhost:8080",
+				Usage: "Hostname:Port format declaration of the target resolver hostname",
+			},
+			cli.StringFlag{
+				Name:  "proxy, p",
+				Usage: "Hostname:Port format declaration of the proxy hostname",
+			},
+			cli.StringFlag{
+				Name:  "dnstype, t",
+				Value: "A",
 			},
 		},
 	},
