@@ -878,7 +878,7 @@ func (s hkdfScheme) Expand(prk, info []byte, outLen int) []byte {
 }
 
 func (s hkdfScheme) LabeledExtract(salt []byte, suiteID []byte, label string, ikm []byte) []byte {
-	labeledIKM := append([]byte(rfcLabel), suiteID...)
+	labeledIKM := append([]byte(versionLabel), suiteID...)
 	labeledIKM = append(labeledIKM, []byte(label)...)
 	labeledIKM = append(labeledIKM, ikm...)
 	return s.Extract(salt, labeledIKM)
@@ -891,7 +891,7 @@ func (s hkdfScheme) LabeledExpand(prk []byte, suiteID []byte, label string, info
 
 	lengthBuffer := make([]byte, 2)
 	binary.BigEndian.PutUint16(lengthBuffer, uint16(L))
-	labeledLength := append(lengthBuffer, []byte(rfcLabel)...)
+	labeledLength := append(lengthBuffer, []byte(versionLabel)...)
 	labeledInfo := append(labeledLength, suiteID...)
 	labeledInfo = append(labeledInfo, []byte(label)...)
 	labeledInfo = append(labeledInfo, info...)

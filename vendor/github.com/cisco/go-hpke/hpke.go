@@ -12,8 +12,8 @@ import (
 )
 
 const (
-	debug    = true
-	rfcLabel = "HPKE-07"
+	debug        = true
+	versionLabel = "HPKE-v1"
 )
 
 type KEMPrivateKey interface {

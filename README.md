@@ -1,6 +1,6 @@
 # odoh-client-go
 
-`odoh-client` is a command line interface as a client for making [Oblivious DNS-over-HTTPS](https://tools.ietf.org/html/draft-pauly-dprive-oblivious-doh-04) queries. The implementation is based on [chris-wood/odoh-client](https://github.com/chris-wood/odoh-client).
+`odoh-client` is a command line interface as a client for making [Oblivious DNS-over-HTTPS](https://tools.ietf.org/html/draft-pauly-dprive-oblivious-doh-06) queries. The implementation is based on [chris-wood/odoh-client](https://github.com/chris-wood/odoh-client).
 
 It currently supports the following functionalities:
 
