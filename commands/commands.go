@@ -111,6 +111,7 @@ var Commands = []cli.Command{
 			cli.StringFlag{
 				Name:  "out",
 				Value: "",
+				Usage: "Filename to save serialized JSON response from benchmark execution (eg. output.json). If no filename is provided, the default will print to console.",
 			},
 			cli.StringFlag{
 				Name:  "target",

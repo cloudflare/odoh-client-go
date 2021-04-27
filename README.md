@@ -40,6 +40,34 @@ go build -o odoh-client ./cmd/...
 ./odoh-client odohconfig-fetch --target odoh.cloudflare-dns.com --pretty
 ```
 
+### Running benchmarks
+
+#### Obtaining a dataset
+
+We use the Tranco Top Million dataset as an example dataset for this repository. The file `fetch-datasets.sh` retrieves
+a sample Tranco top million dataset which is then parsed to remove the ranking numbers modifying the dataset file to
+contain only the hostnames. Any other dataset which follows the same pattern can be directly used as a test file for 
+benchmarking `ODoH`. By running the `make fetch` command, a new directory called `dataset/` is created and the tranco
+top million file is obtained and stored.
+
+```
+make fetch
+```
+
+#### Running the Benchmark
+
+`odoh-client` takes in the path to the dataset `--data` and reads the list, shuffles it to obtain a random order and 
+performs the `ODoH` queries to a chosen `--target` and `--proxy`. By default if the `--out` is not specified, the output
+is printed to console or is written to the file provided in the `--out` argument.
+
+For reading the current defaults and additional configuration options, please run `odoh-client bench --help`
+
+An example command for running the benchmark is as follows:
+
+```sh
+odoh-client bench --data dataset/tranco-1m.csv --target odoh.cloudflare-dns.com --proxy <instance> --out odoh-cf.json
+``` 
+
 ### Note
 
 > This tool includes a sub command for benchmarking various protocols and has been

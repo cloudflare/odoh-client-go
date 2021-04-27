@@ -3,6 +3,9 @@ VERSION=$(shell cat VERSION)
 
 NAME=odoh-client
 
+DIRS_NEEDED=dataset
+FILENAME="dataset/tranco-1m.zip"
+
 all: clean build
 
 clean:
@@ -15,7 +18,12 @@ build: clean
 	@echo "Version: $(VERSION)"
 	@go build -ldflags "-X main.Version=$(VERSION) -X main.CommitId=$(COMMIT_ID)" ./cmd/*
 
+fetch:
+	@echo "Create the necessary directories ..."
+	chmod +x ./fetch-datasets.sh
+	./fetch-datasets.sh
+
 install:
 	@go install -ldflags "-X main.Version=$(VERSION) -X main.CommitId=$(COMMIT_ID)" ./cmd/*
 
-.PHONY: all clean build install
+.PHONY: all clean build fetch install

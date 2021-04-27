@@ -329,12 +329,14 @@ func benchmarkClient(c *cli.Context) {
 		log.Fatal("Failed to encode results:", err)
 	}
 
-	if _, err := os.Stat(outputFilePath); os.IsNotExist(err) {
-		fmt.Println(string(encResponses))
-	} else {
-		err = ioutil.WriteFile("output.json", encResponses, 0644)
-		if err != nil {
-			log.Fatal("Failed writing results to file:", err)
+	if outputFilePath != "" {
+		if _, err := os.Stat(outputFilePath); os.IsNotExist(err) {
+			err = ioutil.WriteFile(outputFilePath, encResponses, 0644)
+			if err != nil {
+				log.Fatal("Failed writing results to file:", err)
+			}
 		}
+	} else {
+		fmt.Println(string(encResponses))
 	}
 }
