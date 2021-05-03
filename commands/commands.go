@@ -48,6 +48,10 @@ var Commands = []cli.Command{
 				Name:  "proxy, p",
 				Usage: "Hostname:Port format declaration of the proxy hostname",
 			},
+			cli.StringFlag{
+				Name:  "config, c",
+				Usage: "ODoHConfigs to use for the query, encoded as a hexadecimal string",
+			},
 		},
 	},
 	{
