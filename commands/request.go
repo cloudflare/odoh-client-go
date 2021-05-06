@@ -128,7 +128,7 @@ func obliviousDnsRequest(c *cli.Context) error {
 
 	var odohConfigs odoh.ObliviousDoHConfigs
 	var err error
-	if len(configString) == 0 {
+	if len(strings.TrimSpace(configString)) == 0 {
 		odohConfigs, err = fetchTargetConfigs(targetName)
 		if err != nil {
 			return err
