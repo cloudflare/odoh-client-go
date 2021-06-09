@@ -10,6 +10,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"strings"
 
 	odoh "github.com/cloudflare/odoh-go"
 	"github.com/miekg/dns"
