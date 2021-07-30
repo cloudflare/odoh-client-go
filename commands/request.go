@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/base64"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -122,6 +123,7 @@ func obliviousDnsRequest(c *cli.Context) error {
 	targetName := c.String("target")
 	proxy := c.String("proxy")
 	customCAPath := c.String("customcert")
+	configString := c.String("config")
 
 	var useproxy bool
 	if len(proxy) > 0 {
@@ -144,15 +146,27 @@ func obliviousDnsRequest(c *cli.Context) error {
 		}
 		client.Transport = tlsConfiguredTransport
 	}
-
-	odohConfigs, err := fetchTargetConfigs(targetName)
-	if err != nil {
-		return err
-	}
-	if len(odohConfigs.Configs) == 0 {
-		err := errors.New("target provided no valid odoh configs")
-		fmt.Println(err)
-		return err
+	var odohConfigs odoh.ObliviousDoHConfigs
+	var err error
+	if len(strings.TrimSpace(configString)) == 0 {
+		odohConfigs, err = fetchTargetConfigs(targetName)
+		if err != nil {
+			return err
+		}
+		if len(odohConfigs.Configs) == 0 {
+			err := errors.New("target provided no valid odoh configs")
+			fmt.Println(err)
+			return err
+		}
+	} else {
+		configBytes, err := hex.DecodeString(configString)
+		if err != nil {
+			return err
+		}
+		odohConfigs, err = odoh.UnmarshalObliviousDoHConfigs(configBytes)
+		if err != nil {
+			return err
+		}
 	}
 	odohConfig := odohConfigs.Configs[0]
 

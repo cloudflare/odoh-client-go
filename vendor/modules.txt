@@ -11,7 +11,7 @@ github.com/cloudflare/circl/dh/sidh/internal/common
 github.com/cloudflare/circl/dh/sidh/internal/p503
 github.com/cloudflare/circl/dh/sidh/internal/p751
 github.com/cloudflare/circl/dh/sidh/internal/shake
-# github.com/cloudflare/odoh-go v0.1.6
+# github.com/cloudflare/odoh-go v1.0.0
 ## explicit
 github.com/cloudflare/odoh-go
 # github.com/cpuguy83/go-md2man/v2 v2.0.0-20190314233015-f79a8a8ca69d

@@ -53,6 +53,10 @@ var Commands = []cli.Command{
 				Usage: "Use --customcert to indicate the path to the custom certificates if using localhost certs",
 				Value: "",
 			},
+			cli.StringFlag{
+				Name:  "config, c",
+				Usage: "ODoHConfigs to use for the query, encoded as a hexadecimal string",
+			},
 		},
 	},
 	{
