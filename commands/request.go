@@ -2,6 +2,8 @@ package commands
 
 import (
 	"bytes"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/base64"
 	"encoding/hex"
 	"errors"
@@ -120,6 +122,7 @@ func obliviousDnsRequest(c *cli.Context) error {
 	dnsTypeString := c.String("dnstype")
 	targetName := c.String("target")
 	proxy := c.String("proxy")
+	customCAPath := c.String("customcert")
 	configString := c.String("config")
 
 	var useproxy bool
@@ -127,6 +130,22 @@ func obliviousDnsRequest(c *cli.Context) error {
 		useproxy = true
 	}
 
+	client := http.Client{}
+
+	if len(strings.TrimSpace(customCAPath)) != 0 {
+		customCAPool := x509.NewCertPool()
+
+		rootCA, err := ioutil.ReadFile(customCAPath)
+		if err != nil {
+			log.Fatalf("Error reading custom certificate : %v", err)
+		}
+		customCAPool.AppendCertsFromPEM(rootCA)
+		log.Println("Custom Trusted CA Certificates loaded")
+		tlsConfiguredTransport := &http.Transport{
+			TLSClientConfig: &tls.Config{RootCAs: customCAPool},
+		}
+		client.Transport = tlsConfiguredTransport
+	}
 	var odohConfigs odoh.ObliviousDoHConfigs
 	var err error
 	if len(strings.TrimSpace(configString)) == 0 {
@@ -167,7 +186,7 @@ func obliviousDnsRequest(c *cli.Context) error {
 		return err
 	}
 
-	client := http.Client{}
+
 	odohMessage, err := resolveObliviousQuery(odohQuery, useproxy, targetName, proxy, &client)
 	if err != nil {
 		fmt.Println(err)
